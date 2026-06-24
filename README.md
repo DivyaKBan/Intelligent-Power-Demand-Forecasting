@@ -199,32 +199,7 @@ Includes:
 
 ---
 
-## 🌐 Netlify Deployment (Frontend Only)
 
-The frontend is a pure HTML/JS file — no build step needed.
-
-1. Go to [netlify.com](https://netlify.com) → **Add new site** → **Deploy manually**
-2. Drag and drop the `frontend/` folder
-3. Edit `frontend/index.html` line:
-   ```js
-   const API = 'https://your-backend-url.com';  // change from window.location.origin
-   ```
-4. For the backend, deploy to **Render**, **Railway**, or **Fly.io** (all support Docker)
-
----
-
-## 📈 Dashboard Features
-
-- **Live 24-hour forecast chart** with feeder breakdown (F1/F2/F3)
-- **Holiday annotations** on the forecast chart (orange dots)
-- **Weather cards** — hourly temperature, humidity, wind, cloud cover (Open-Meteo)
-- **Feeder donut chart** — percentage breakdown by 132KV feeder
-- **Hourly pattern bar chart** — color-coded by load intensity
-- **KPI cards** — peak, min, avg load + peak time
-- **Holiday table** — all 22 Jharkhand events with type and demand impact rating
-- **Model metrics card** — R², MAPE, MAE, RMSE
-
----
 
 ## ⚙️ Environment Notes
 
