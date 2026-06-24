@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>APU Power Demand Forecast — Dhanbad, Jharkhand</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg:       #0f1117;
+      --surface:  #1a1d2e;
+      --surface2: #242842;
+      --accent:   #4f8ef7;
+      --accent2:  #f76e4f;
+      --green:    #3ecf8e;
+      --yellow:   #f7c948;
+      --text:     #e8eaf0;
+      --muted:    #8892a4;
+      --border:   #2e3350;
+      --radius:   12px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'Inter', 'Segoe UI', sans-serif; min-height: 100vh; }
+
+    header {
+      background: linear-gradient(135deg, #1a1d2e 0%, #242842 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 2rem;
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;
+    }
+    .logo { display: flex; align-items: center; gap: 0.75rem; }
+    .logo-icon { font-size: 2rem; }
+    .logo h1 { font-size: 1.25rem; font-weight: 700; color: var(--text); }
+    .logo p { font-size: 0.78rem; color: var(--muted); }
+    .header-right { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+    .status-dot { width:8px; height:8px; border-radius:50%; background: var(--green); display:inline-block; margin-right:0.4rem; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+    .badge { background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 0.3rem 0.75rem; font-size: 0.75rem; color: var(--muted); }
+    .refresh-btn {
+      background: var(--accent); color: white; border: none; border-radius: 8px;
+      padding: 0.5rem 1.2rem; cursor: pointer; font-size: 0.85rem; font-weight: 600;
+      transition: 0.2s; display: flex; align-items: center; gap: 0.4rem;
+    }
+    .refresh-btn:hover { background: #3a7de0; }
+    .refresh-btn:disabled { background: #333; cursor: not-allowed; }
+
+    main { max-width: 1400px; margin: 0 auto; padding: 1.5rem 2rem; }
+
+    /* KPI Cards */
+    .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+    .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.2rem; position: relative; overflow: hidden; }
+    .kpi::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background: var(--accent); border-radius: var(--radius) var(--radius) 0 0; }
+    .kpi.green::before  { background: var(--green); }
+    .kpi.red::before    { background: var(--accent2); }
+    .kpi.yellow::before { background: var(--yellow); }
+    .kpi-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 0.4rem; }
+    .kpi-value { font-size: 1.8rem; font-weight: 800; color: var(--text); }
+    .kpi-unit  { font-size: 0.75rem; color: var(--muted); margin-top: 0.2rem; }
+
+    /* Grid layout */
+    .grid-2 { display: grid; grid-template-columns: 2fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1rem; }
+    @media (max-width: 900px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.2rem; }
+    .card-title { font-size: 0.85rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+    .card-title span { font-size: 1rem; }
+
+    /* Chart */
+    .chart-wrap { position: relative; height: 300px; }
+
+    /* Weather cards */
+    .weather-row { display: flex; gap: 0.6rem; overflow-x: auto; padding-bottom: 0.5rem; }
+    .weather-item {
+      background: var(--surface2); border: 1px solid var(--border); border-radius: 10px;
+      padding: 0.7rem 0.9rem; text-align: center; min-width: 80px; flex-shrink: 0;
+    }
+    .weather-time { font-size: 0.7rem; color: var(--muted); }
+    .weather-icon { font-size: 1.5rem; margin: 0.3rem 0; }
+    .weather-temp { font-size: 1rem; font-weight: 700; color: var(--accent2); }
+    .weather-hum  { font-size: 0.65rem; color: var(--muted); }
+
+    /* Holiday table */
+    table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    th { padding: 0.5rem 0.8rem; text-align: left; color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--border); font-size: 0.7rem; text-transform: uppercase; }
+    td { padding: 0.55rem 0.8rem; border-bottom: 1px solid rgba(46,51,80,0.5); vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(79,142,247,0.06); }
+    .pill { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.67rem; font-weight: 600; }
+    .pill-national  { background: rgba(79,142,247,0.2);  color: var(--accent); }
+    .pill-state     { background: rgba(62,207,142,0.2);  color: var(--green); }
+    .pill-tribal    { background: rgba(247,201,72,0.2);   color: var(--yellow); }
+    .pill-islamic   { background: rgba(155,135,245,0.2);  color: #9b87f5; }
+    .pill-industrial{ background: rgba(247,110,79,0.2);   color: var(--accent2); }
+    .pill-hindu     { background: rgba(247,201,72,0.15);  color: var(--yellow); }
+
+    /* Feeder chart */
+    .feeder-bars { display: flex; flex-direction: column; gap: 0.6rem; }
+    .feeder-bar-row { display: flex; align-items: center; gap: 0.7rem; }
+    .feeder-label { width: 25px; font-size: 0.75rem; color: var(--muted); font-weight: 700; }
+    .feeder-track { flex: 1; height: 10px; background: var(--surface2); border-radius: 6px; overflow: hidden; }
+    .feeder-fill { height: 100%; border-radius: 6px; transition: width 0.6s ease; }
+    .feeder-val { width: 60px; font-size: 0.75rem; color: var(--text); text-align: right; }
+
+    /* Model metrics */
+    .metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+    .metric-item { background: var(--surface2); border-radius: 8px; padding: 0.7rem; text-align: center; }
+    .metric-num { font-size: 1.3rem; font-weight: 800; }
+    .metric-lbl { font-size: 0.65rem; color: var(--muted); margin-top: 0.2rem; }
+
+    /* Loading overlay */
+    #loading { position: fixed; inset: 0; background: rgba(15,17,23,0.9); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 999; gap: 1rem; }
+    .spinner { width: 48px; height: 48px; border: 4px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #loading p { color: var(--muted); font-size: 0.9rem; }
+
+    footer { text-align: center; color: var(--muted); font-size: 0.75rem; padding: 2rem; border-top: 1px solid var(--border); margin-top: 2rem; }
+    .error-msg { color: var(--accent2); background: rgba(247,110,79,0.1); border: 1px solid rgba(247,110,79,0.3); border-radius: 8px; padding: 0.8rem 1rem; font-size: 0.82rem; margin-bottom: 1rem; display: none; }
+  </style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="spinner"></div>
+  <p>Fetching forecast from APU model...</p>
+</div>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">⚡</div>
+    <div>
+      <h1>APU Power Demand Forecasting</h1>
+      <p>Dhanbad, Jharkhand — 10-minute Interval Forecasting</p>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="badge"><span class="status-dot"></span>Live Model</div>
+    <div class="badge" id="forecast-date-badge">Loading...</div>
+    <button class="refresh-btn" id="refreshBtn" onclick="loadAll()">
+      🔄 Refresh
+    </button>
+  </div>
+</header>
+
+<main>
+  <div id="errorMsg" class="error-msg"></div>
+
+  <!-- KPI Row -->
+  <div class="kpi-row">
+    <div class="kpi">         <div class="kpi-label">Peak Load</div>     <div class="kpi-value" id="kpi-peak">—</div>  <div class="kpi-unit">kW</div> </div>
+    <div class="kpi green">   <div class="kpi-label">Min Load</div>      <div class="kpi-value" id="kpi-min">—</div>   <div class="kpi-unit">kW</div> </div>
+    <div class="kpi yellow">  <div class="kpi-label">Avg Load</div>      <div class="kpi-value" id="kpi-avg">—</div>   <div class="kpi-unit">kW</div> </div>
+    <div class="kpi red">     <div class="kpi-label">Peak Time</div>     <div class="kpi-value" id="kpi-time" style="font-size:1.2rem">—</div><div class="kpi-unit">24h</div> </div>
+    <div class="kpi">         <div class="kpi-label">Forecast Blocks</div><div class="kpi-value">144</div><div class="kpi-unit">× 10 min</div></div>
+    <div class="kpi green">   <div class="kpi-label">MAPE</div>          <div class="kpi-value">0.55<span style="font-size:1rem">%</span></div><div class="kpi-unit">model error</div></div>
+  </div>
+
+  <!-- Main chart + weather -->
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title"><span>📈</span> 24-Hour Demand Forecast — All Feeders (144 × 10-min blocks)</div>
+      <div class="chart-wrap"><canvas id="forecastChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span>🌤</span> Weather Forecast — Dhanbad</div>
+      <div class="weather-row" id="weatherRow"><p style="color:var(--muted);font-size:0.8rem">Loading weather...</p></div>
+      <div style="margin-top:1rem;">
+        <div class="card-title"><span>📊</span> Current Conditions</div>
+        <div class="metric-grid" id="weatherMetrics">
+          <div class="metric-item"><div class="metric-num" id="cur-temp" style="color:var(--accent2)">—°</div><div class="metric-lbl">Temperature</div></div>
+          <div class="metric-item"><div class="metric-num" id="cur-hum" style="color:var(--accent)">—%</div><div class="metric-lbl">Humidity</div></div>
+          <div class="metric-item"><div class="metric-num" id="cur-wind" style="color:var(--green)">—</div><div class="metric-lbl">Wind km/h</div></div>
+          <div class="metric-item"><div class="metric-num" id="cur-cloud" style="color:var(--yellow)">—%</div><div class="metric-lbl">Cloud Cover</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Feeder breakdown + donut + model info -->
+  <div class="grid-3">
+    <div class="card">
+      <div class="card-title"><span>🔌</span> Feeder Breakdown (Avg Load)</div>
+      <div class="chart-wrap" style="height:220px"><canvas id="feederChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span>📉</span> Load Pattern by Hour</div>
+      <div class="chart-wrap" style="height:220px"><canvas id="hourlyChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span>🤖</span> Model Information</div>
+      <div class="metric-grid">
+        <div class="metric-item"><div class="metric-num" style="color:var(--green)">0.9989</div><div class="metric-lbl">R² Score</div></div>
+        <div class="metric-item"><div class="metric-num" style="color:var(--accent)">0.55%</div><div class="metric-lbl">MAPE</div></div>
+        <div class="metric-item"><div class="metric-num" style="color:var(--yellow)">353</div><div class="metric-lbl">MAE (kW)</div></div>
+        <div class="metric-item"><div class="metric-num" style="color:var(--accent2)">528</div><div class="metric-lbl">RMSE (kW)</div></div>
+      </div>
+      <div style="margin-top:1rem;font-size:0.75rem;color:var(--muted);line-height:1.7;">
+        <div>📌 <b style="color:var(--text)">Algorithm:</b> XGBoost Regressor</div>
+        <div>📌 <b style="color:var(--text)">Features:</b> 43 engineered features</div>
+        <div>📌 <b style="color:var(--text)">Training:</b> Jan–Nov 2017 (49K rows)</div>
+        <div>📌 <b style="color:var(--text)">Feeders:</b> F1, F2, F3 (132KV)</div>
+        <div>📌 <b style="color:var(--text)">Weather:</b> Open-Meteo API</div>
+        <div>📌 <b style="color:var(--text)">Holidays:</b> 22 Jharkhand-localized</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Holidays Table -->
+  <div class="card">
+    <div class="card-title"><span>📅</span> Localized Holiday Calendar — Dhanbad, Jharkhand (Power Demand Impact Events)</div>
+    <div style="overflow-x:auto;">
+      <table>
+        <thead>
+          <tr><th>Date</th><th>Day</th><th>Holiday</th><th>Type</th><th>Demand Impact</th></tr>
+        </thead>
+        <tbody id="holidayTable"><tr><td colspan="5" style="color:var(--muted);text-align:center;padding:1rem">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<footer>
+  APU Power Demand Forecasting System &nbsp;|&nbsp; Dhanbad, Jharkhand, India &nbsp;|&nbsp; XGBoost Model (MAPE 0.55%, R²=0.9989) &nbsp;|&nbsp; Data: Utility_consumption.csv 2017 &nbsp;|&nbsp; Weather: Open-Meteo
+</footer>
+
+<script>
+const API = window.location.origin;
+let forecastChart, feederChart, hourlyChart;
+
+const COLOR = {
+  accent: '#4f8ef7', accent2: '#f76e4f', green: '#3ecf8e',
+  yellow: '#f7c948', purple: '#9b87f5', muted: '#8892a4'
+};
+
+function fmt(n) { return n >= 1000 ? (n/1000).toFixed(1)+'K' : n.toFixed(0); }
+function fmtFull(n) { return n.toLocaleString('en-IN', {maximumFractionDigits: 0}); }
+
+function weatherIcon(cloudcover, hour) {
+  const day = hour >= 6 && hour < 19;
+  if (cloudcover > 75) return '☁️';
+  if (cloudcover > 40) return day ? '⛅' : '🌥';
+  return day ? '☀️' : '🌙';
+}
+
+async function fetchForecast() {
+  const r = await fetch(`${API}/api/forecast`);
+  if (!r.ok) throw new Error('Forecast API error');
+  return r.json();
+}
+async function fetchWeather() {
+  const r = await fetch(`${API}/api/weather`);
+  if (!r.ok) throw new Error('Weather API error');
+  return r.json();
+}
+async function fetchHolidays() {
+  const r = await fetch(`${API}/api/holidays`);
+  if (!r.ok) throw new Error('Holidays API error');
+  return r.json();
+}
+
+function renderForecastChart(forecast) {
+  const ctx = document.getElementById('forecastChart').getContext('2d');
+  const labels = forecast.map(f => f.datetime.split(' ')[1]);
+  const total  = forecast.map(f => f.total_load);
+  const f1     = forecast.map(f => f.F1_load);
+  const f2     = forecast.map(f => f.F2_load);
+  const f3     = forecast.map(f => f.F3_load);
+
+  // Mark holiday blocks
+  const pointColors = forecast.map(f => f.is_holiday ? COLOR.accent2 : 'transparent');
+  const pointRadii  = forecast.map(f => f.is_holiday ? 4 : 0);
+
+  if (forecastChart) forecastChart.destroy();
+  forecastChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Total Load', data: total, borderColor: COLOR.accent, backgroundColor: 'rgba(79,142,247,0.08)',
+          borderWidth: 2, fill: true, tension: 0.3,
+          pointBackgroundColor: pointColors, pointRadius: pointRadii, pointHoverRadius: 5 },
+        { label: 'F1 Feeder', data: f1, borderColor: COLOR.green,   borderWidth: 1, fill: false, tension: 0.3, pointRadius: 0 },
+        { label: 'F2 Feeder', data: f2, borderColor: COLOR.yellow,  borderWidth: 1, fill: false, tension: 0.3, pointRadius: 0 },
+        { label: 'F3 Feeder', data: f3, borderColor: COLOR.purple,  borderWidth: 1, fill: false, tension: 0.3, pointRadius: 0 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: '#8892a4', font: { size: 11 } } },
+        tooltip: {
+          callbacks: {
+            afterLabel: (c) => {
+              const pt = forecast[c.dataIndex];
+              return pt.is_holiday ? `🎉 Holiday: ${pt.holiday_name}` : '';
+            }
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { color: '#8892a4', maxTicksLimit: 12, font:{size:10} }, grid: { color: '#1e2235' } },
+        y: { ticks: { color: '#8892a4', callback: v => fmt(v), font:{size:10} }, grid: { color: '#1e2235' } }
+      }
+    }
+  });
+}
+
+function renderFeederDonut(forecast) {
+  const ctx = document.getElementById('feederChart').getContext('2d');
+  const avgF1 = forecast.reduce((s,f)=>s+f.F1_load,0)/forecast.length;
+  const avgF2 = forecast.reduce((s,f)=>s+f.F2_load,0)/forecast.length;
+  const avgF3 = forecast.reduce((s,f)=>s+f.F3_load,0)/forecast.length;
+
+  if (feederChart) feederChart.destroy();
+  feederChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['F1 (132KV)', 'F2 (132KV)', 'F3 (132KV)'],
+      datasets: [{
+        data: [avgF1, avgF2, avgF3],
+        backgroundColor: [COLOR.accent, COLOR.yellow, COLOR.purple],
+        borderColor: '#1a1d2e', borderWidth: 3
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#8892a4', font:{size:11}, padding:10 } },
+        tooltip: { callbacks: { label: c => `${c.label}: ${fmtFull(c.raw)} kW (${(c.raw/(avgF1+avgF2+avgF3)*100).toFixed(1)}%)` } }
+      },
+      cutout: '65%'
+    }
+  });
+}
+
+function renderHourlyBar(forecast) {
+  const ctx = document.getElementById('hourlyChart').getContext('2d');
+  const hourlyAvg = Array(24).fill(0).map((_, h) => {
+    const pts = forecast.filter(f => parseInt(f.datetime.split(' ')[1].split(':')[0]) === h);
+    return pts.length ? pts.reduce((s,p)=>s+p.total_load,0)/pts.length : 0;
+  });
+
+  if (hourlyChart) hourlyChart.destroy();
+  hourlyChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: Array.from({length:24}, (_,i) => `${i}:00`),
+      datasets: [{
+        label: 'Avg Load (kW)',
+        data: hourlyAvg,
+        backgroundColor: hourlyAvg.map(v => {
+          const max = Math.max(...hourlyAvg);
+          const ratio = v / max;
+          return ratio > 0.9 ? COLOR.accent2 : ratio > 0.7 ? COLOR.yellow : COLOR.accent;
+        }),
+        borderRadius: 4,
+        borderSkipped: false
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#8892a4', font:{size:9}, maxTicksLimit: 8 }, grid: { color: '#1e2235' } },
+        y: { ticks: { color: '#8892a4', callback: v => fmt(v), font:{size:9} }, grid: { color: '#1e2235' } }
+      }
+    }
+  });
+}
+
+function renderWeather(data) {
+  const hourly = data.hourly || [];
+  const row = document.getElementById('weatherRow');
+  if (!hourly.length) { row.innerHTML = '<p style="color:var(--muted)">Weather unavailable</p>'; return; }
+
+  row.innerHTML = hourly.slice(0, 24).map(h => `
+    <div class="weather-item">
+      <div class="weather-time">${String(h.hour).padStart(2,'0')}:00</div>
+      <div class="weather-icon">${weatherIcon(h.cloudcover || 30, h.hour)}</div>
+      <div class="weather-temp">${h.temperature}°</div>
+      <div class="weather-hum">💧${h.humidity}%</div>
+    </div>
+  `).join('');
+
+  // Current conditions
+  const cur = hourly[0] || {};
+  document.getElementById('cur-temp').textContent  = (cur.temperature ?? '—') + '°C';
+  document.getElementById('cur-hum').textContent   = (cur.humidity ?? '—') + '%';
+  document.getElementById('cur-wind').textContent  = cur.windspeed ?? '—';
+  document.getElementById('cur-cloud').textContent = (cur.cloudcover ?? '—') + '%';
+}
+
+function impactBadge(name) {
+  const high = ['Chhath Puja','Diwali','Durga Puja','Holi','Eid'];
+  const med  = ['Navratri','Ganesh','Karma','Republic','Independence'];
+  if (high.some(h => name.includes(h))) return '<span style="color:var(--accent2)">🔴 High Drop</span>';
+  if (med.some(m => name.includes(m)))  return '<span style="color:var(--yellow)">🟡 Moderate</span>';
+  return '<span style="color:var(--muted)">⚪ Low</span>';
+}
+
+function pillClass(type) {
+  const m = { 'National':'national','State':'state','Tribal/Adivasi':'tribal',
+               'Islamic':'islamic','Industrial':'industrial','Hindu/Festival':'hindu' };
+  return `pill pill-${m[type]||'hindu'}`;
+}
+
+function renderHolidays(data) {
+  const tbody = document.getElementById('holidayTable');
+  const holidays = data.holidays || [];
+  tbody.innerHTML = holidays.map(h => `
+    <tr>
+      <td><b>${h.date}</b></td>
+      <td style="color:var(--muted)">${h.day}</td>
+      <td>${h.name}</td>
+      <td><span class="${pillClass(h.type)}">${h.type}</span></td>
+      <td>${impactBadge(h.name)}</td>
+    </tr>
+  `).join('') || '<tr><td colspan="5" style="color:var(--muted)">No holidays found</td></tr>';
+}
+
+async function loadAll() {
+  const btn = document.getElementById('refreshBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Loading...';
+  document.getElementById('errorMsg').style.display = 'none';
+  document.getElementById('loading').style.display = 'flex';
+
+  try {
+    const [fData, wData, hData] = await Promise.all([fetchForecast(), fetchWeather(), fetchHolidays()]);
+    const forecast = fData.forecast;
+    const summary  = fData.summary;
+
+    // KPIs
+    document.getElementById('kpi-peak').textContent = fmt(summary.peak_load_kW);
+    document.getElementById('kpi-min').textContent  = fmt(summary.min_load_kW);
+    document.getElementById('kpi-avg').textContent  = fmt(summary.avg_load_kW);
+    document.getElementById('kpi-time').textContent = summary.peak_time.split(' ')[1];
+    document.getElementById('forecast-date-badge').textContent = fData.forecast_date;
+
+    renderForecastChart(forecast);
+    renderFeederDonut(forecast);
+    renderHourlyBar(forecast);
+    renderWeather(wData);
+    renderHolidays(hData);
+
+  } catch(err) {
+    const msg = document.getElementById('errorMsg');
+    msg.textContent = `⚠️ Error: ${err.message}. Is the backend running at ${API}?`;
+    msg.style.display = 'block';
+    console.error(err);
+  } finally {
+    document.getElementById('loading').style.display = 'none';
+    btn.disabled = false;
+    btn.textContent = '🔄 Refresh';
+  }
+}
+
+loadAll();
+</script>
+</body>
+</html>
